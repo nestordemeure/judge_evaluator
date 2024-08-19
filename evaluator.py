@@ -165,8 +165,10 @@ def apply_markov_chain(markov_matrix, nb_trials):
     prob_vector = np.ones(nb_rows) / nb_rows
     
     # Apply the Markov matrix nb_trials times
-    for _ in range(nb_trials):
-        prob_vector = prob_vector @ markov_matrix
+    #for _ in range(nb_trials):
+    #    prob_vector = prob_vector @ markov_matrix
+    # Matrix exponentiation for large numbers of trials
+    prob_vector = prob_vector @ np.linalg.matrix_power(markov_matrix, nb_trials)
     
     # Final renormalization to handle numerical instabilities
     prob_vector /= np.sum(prob_vector)
