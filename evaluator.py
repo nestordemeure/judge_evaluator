@@ -184,7 +184,8 @@ print(f"End probabilities: {judges_end_probas}")
 
 def agreement_probability(prob_vector1, prob_vector2):
     # Compute the sum of the minimum of paired values from the two probability vectors
-    return np.sum(np.minimum(prob_vector1, prob_vector2))
+    # this is the probability of both distribution having the same value, hypothezing maximum correlation
+    return np.sum(np.minimum(prob_vector1, prob_vector2)) # min
 
 def compute_alignment(models_dict):
     # Extract the human model's probability vector
@@ -217,9 +218,9 @@ def plot_alignment(alignment_dict, output_file):
     plt.figure(figsize=(12, 8))
     plt.bar(models, alignment_scores, color='skyblue')
     plt.xlabel('Models')
-    plt.ylabel('Alignment with Human')
+    plt.ylabel('Probability of agreeing with Human')
     plt.title('Model Alignment with Human')
-    plt.ylim(0, 1)  # Since alignment is a probability, it should be between 0 and 1
+    #plt.ylim(0, 1)  # Since alignment is a probability, it should be between 0 and 1
     
     # Tilt the x-axis labels
     plt.xticks(rotation=45, ha='right')
@@ -243,8 +244,8 @@ def plot_judges_probabilities(judges_end_probas, contestants_index, output_dir):
         # Plot the probabilities
         plt.bar(chatbot_names, prob_vector, color='skyblue')
         plt.xlabel('Chatbots')
-        plt.ylabel('Probability')
-        plt.title(f'Probabilities assigned by {judge_name}')
+        plt.ylabel(f'Probability of picking a given model after {nb_trials} trials of {nb_questions_per_trial} questions')
+        plt.title(f'Probability Distribution of {judge_name}')
         plt.ylim(0, 1)  # Since it's a probability, it should be between 0 and 1
         
         # Tilt the x-axis labels for better readability
