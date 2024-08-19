@@ -2,6 +2,9 @@
 
 Statistic to decide on which LLM best emulates a human picking between chatbots.
 
+Our key insight is the idea that, in practice, we pick a new model by comparing it to the current best model on a serie of questions.
+What we want is the judge which, given the same process, is most likely to end up with the same best final model as the human.
+
 ## Theory
 
 Historical contest data tells us, given a judge (which might be a human), what is the probability of one model doing better than another on a given question.
