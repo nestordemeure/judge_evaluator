@@ -218,7 +218,7 @@ def plot_alignment(alignment_dict, output_file):
     plt.figure(figsize=(12, 8))
     plt.bar(models, alignment_scores, color='skyblue')
     plt.xlabel('Models')
-    plt.ylabel('Probability of agreeing with Human')
+    plt.ylabel('Probability of agreeing with Human after {nb_trials} trials of {nb_questions_per_trial} questions')
     plt.title('Model Alignment with Human')
     #plt.ylim(0, 1)  # Since alignment is a probability, it should be between 0 and 1
     
