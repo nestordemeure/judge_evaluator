@@ -1,9 +1,12 @@
 # Judge Evaluator
 
-Statistic to decide on which LLM best emulates a human picking between chatbots.
+Statistic to decidemon which LLM best emulates a human picking between chatbots.
+
+We observed that the naive approach of seing how often a judging model agrees with a human is noisy (there is little human data compared to all permutations of models and questions) and that it, as well as more clever variant (such as looking at the ELO scores given to the model) puts equal emphasis on all comparison / models while we only care about the judge's ability to pick the best model.
 
 Our key insight is the idea that, in practice, we pick a new model by comparing it to the current best model on a serie of questions.
-What we want is the judge which, given the same process, is most likely to end up with the same best final model as the human.
+What we want is the judge which, given the same process, is most likely to end up with *the same best final model* as the human.
+The following is a statistical formalization of that intuition, examining the distribution of final models.
 
 ## Theory
 
