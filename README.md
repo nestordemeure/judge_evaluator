@@ -28,7 +28,7 @@ Run the following to install the code and its dependencies:
 ```sh
 python3 -m venv venv
 source venv/bin/activate
-python3 -m pip install scipy matplotlib
+python3 -m pip install scipy matplotlib scikit-learn
 ```
 
 ### Run

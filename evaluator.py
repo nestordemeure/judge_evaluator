@@ -2,7 +2,8 @@ import json
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
-from typing import List, Dict
+from sklearn.decomposition import PCA
+from typing import Dict
 from pathlib import Path
 
 # folder with the input jsons
@@ -17,7 +18,7 @@ nb_trials = 10
 
 # output files
 output_folder = Path("./outputs")
-alignement_plot_file = output_folder / "model_alignment.png"
+alignement_plot_file = output_folder / "judges_alignment.png"
 
 #--------------------------------------------------------------------------------------------------
 # IMPORT DATA
@@ -257,6 +258,31 @@ def plot_judges_probabilities(judges_end_probas, contestants_index, output_dir):
         plt.savefig(f'{output_dir}/{judge_name}_probabilities.png')
         plt.close()
 
+def plot_pca(judges_end_probas, output_folder):
+    # Convert dictionary values to a 2D matrix
+    prob_matrix = np.array(list(judges_end_probas.values()))
+    names = list(judges_end_probas.keys())
+
+    # Perform PCA to reduce to 2 dimensions
+    pca = PCA(n_components=2)
+    pca_result = pca.fit_transform(prob_matrix)
+    explained_variance = pca.explained_variance_ratio_[:2].sum()
+
+    # Plot the PCA result
+    plt.figure(figsize=(10, 8))
+    plt.scatter(pca_result[:, 0], pca_result[:, 1])
+
+    # Annotate points with names
+    for i, name in enumerate(names):
+        plt.annotate(name, (pca_result[i, 0], pca_result[i, 1]))
+
+    plt.title(f"PCA of Judges' Probability Distributions ({explained_variance:.2f} explained variance)")
+    plt.xlabel('Principal Component 1')
+    plt.ylabel('Principal Component 2')
+    plt.savefig(output_folder /'judges_pca.png')
+    plt.close()
+
 # save plots to file
 plot_alignment(judges_alignements, alignement_plot_file)
 plot_judges_probabilities(judges_end_probas, contestants_index, output_folder)
+plot_pca(judges_end_probas, output_folder)
