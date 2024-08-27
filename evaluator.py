@@ -2,6 +2,7 @@ import json
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.decomposition import PCA
 from typing import Dict
 from pathlib import Path
@@ -211,26 +212,40 @@ print(f"Alignements: {judges_alignements}")
 #--------------------------------------------------------------------------------------------------
 # PLOTS
 
-def plot_alignment(alignment_dict, output_file):
-    # Sort the alignment dictionary by models and corresponding scores
-    sorted_items = sorted(alignment_dict.items(), key=lambda item: item[1], reverse=True)
+def plot_heatmaps(judges_dict, contestants_index, output_folder):
+    """
+    Generates and saves a heatmap for each judge's probability matrix.
     
-    # Unpack the sorted items into models and alignment scores
-    models, alignment_scores = zip(*sorted_items)
+    Parameters:
+    judges_dict (dict): A dictionary where keys are judge names (str) and values are numpy matrices (2D arrays of probabilities).
+    contestants_index (dict): A dictionary where keys are model names (str) and values are the index (int) corresponding to row/col in the matrix.
+    output_folder (Path): The path to the output folder where heatmaps should be saved.
+    """
+    # Convert the contestants_index dictionary to a list for ordering labels
+    index_to_label = {v: k for k, v in contestants_index.items()}
+    labels = [index_to_label[i] for i in range(len(index_to_label))]
 
-    plt.figure(figsize=(12, 8))
-    plt.bar(models, alignment_scores, color='skyblue')
-    plt.xlabel('Models')
-    plt.ylabel(f'Probability of agreeing with Human after {nb_trials} trials of {nb_questions_per_trial} questions')
-    plt.title('Model Alignment with Human')
-    #plt.ylim(0, 1)  # Since alignment is a probability, it should be between 0 and 1
-    
-    # Tilt the x-axis labels
-    plt.xticks(rotation=45, ha='right')
-    
-    # Save the plot to a file
-    plt.savefig(output_file)
-    plt.close()
+    for judge, matrix in judges_dict.items():
+        plt.figure(figsize=(8, 8))
+        
+        # Generate the heatmap with color scale from 0 to 0.6
+        #sns.heatmap(matrix, annot=True, fmt=".2f", cmap='coolwarm', xticklabels=labels, yticklabels=labels, vmin=0, vmax=0.6)
+        
+        # Apply a logarithmic transformation for the color scale
+        transformed_matrix = np.log1p(1000 * matrix)  # log1p is used to avoid log(0) by computing log(1 + matrix)
+        vmax = np.log1p(1000 * 1.0)
+
+        # Generate the heatmap with the transformed matrix for color scale but original values for annotation
+        sns.heatmap(transformed_matrix, annot=matrix, fmt=".2f", cmap='coolwarm', xticklabels=labels, yticklabels=labels, cbar=False, vmin=0, vmax=vmax)
+        
+        # Add title and labels
+        plt.title(f'Probabilities for Judge: {judge}')
+        
+        # Save the heatmap to the specified folder with the judge's name
+        plt.savefig(output_folder / f'{judge}.png')
+        
+        # Close the plot to free up memory
+        plt.close()
 
 def plot_judges_probabilities(judges_end_probas, contestants_index, output_dir):
     # Inverse the contestants_index dictionary to map indices to chatbot names
@@ -282,7 +297,34 @@ def plot_pca(judges_end_probas, output_folder):
     plt.savefig(output_folder /'judges_pca.png')
     plt.close()
 
+def plot_alignment(alignment_dict, output_file):
+    # Sort the alignment dictionary by models and corresponding scores
+    sorted_items = sorted(alignment_dict.items(), key=lambda item: item[1], reverse=True)
+    
+    # Unpack the sorted items into models and alignment scores
+    models, alignment_scores = zip(*sorted_items)
+
+    plt.figure(figsize=(12, 8))
+    plt.bar(models, alignment_scores, color='skyblue')
+    plt.xlabel('Models')
+    plt.ylabel(f'Probability of agreeing with Human after {nb_trials} trials of {nb_questions_per_trial} questions')
+    plt.title('Model Alignment with Human')
+    #plt.ylim(0, 1)  # Since alignment is a probability, it should be between 0 and 1
+    
+    # Tilt the x-axis labels
+    plt.xticks(rotation=45, ha='right')
+    
+    # Save the plot to a file
+    plt.savefig(output_file)
+    plt.close()
+
 # save plots to file
+print("Plotting results...")
+# matrices
+plot_heatmaps(judges_probability_matrices, contestants_index, output_folder / 'pairwise win proba')
+plot_heatmaps(judges_majority_win_probability_matrices, contestants_index, output_folder / 'pairwise trial win proba')
+plot_heatmaps(judges_markov_matrices, contestants_index, output_folder / 'markov transition matrices')
+# winner distrinbutions
+plot_judges_probabilities(judges_end_probas, contestants_index, output_folder / 'win distribution')
 plot_alignment(judges_alignements, alignement_plot_file)
-plot_judges_probabilities(judges_end_probas, contestants_index, output_folder)
 plot_pca(judges_end_probas, output_folder)
