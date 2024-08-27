@@ -136,14 +136,15 @@ print(f"Majority Win Probability matrices: {judges_majority_win_probability_matr
 # MARKOV TRANSITION MATRIX
 
 def compute_markov_transition_matrix(win):
-    n = win.shape[0]
     markov = np.zeros_like(win)
 
     # Compute the non-diagonal elements
+    n = win.shape[0]
     for r in range(n):
         for c in range(n):
             if r != c:
-                markov[r, c] = win[r, c] / (n - 1)
+                # NOTE: win[c,r]: transition probability is the probability of THEM (c) winning against us (r)
+                markov[r, c] = win[c, r] / (n - 1)
 
     # Compute the diagonal elements
     for r in range(n):
