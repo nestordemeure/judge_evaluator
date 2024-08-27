@@ -9,6 +9,7 @@ from pathlib import Path
 
 # folder with the input jsons
 input_folder = Path("./data")
+human_reference = 'human_all'
 
 # on how many questions are two models compared in a trial
 nb_questions_per_trial = 20
@@ -43,6 +44,7 @@ def import_jsons(input_folder:Path):
     return data_dict
 
 # import the contests data to be analyzed
+print("Loading Data...")
 contests_data = import_jsons(input_folder)
 
 #--------------------------------------------------------------------------------------------------
@@ -66,8 +68,8 @@ def extract_contestants(contests_data):
     return contestant_index
 
 # extract contestants
+print("Running Comptations...")
 contestants_index = extract_contestants(contests_data)
-print(f"Contestants: {contestants_index}")
 
 #--------------------------------------------------------------------------------------------------
 # COMPUTE WIN PROBABILITY
@@ -101,7 +103,6 @@ def compute_judges_win_probability(contestants_index, all_contests:Dict[str,Dict
 
 # compute win probabilities
 judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data)
-print(f"Win Probability matrices: {judges_probability_matrices}")
 
 #--------------------------------------------------------------------------------------------------
 # COMPUTE MAJORITY WIN PROBABILITY
@@ -130,7 +131,6 @@ def compute_judges_majority_win_probability(judges_probability_matrices, nb_ques
 
 # compute majority win probabilities
 judges_majority_win_probability_matrices = compute_judges_majority_win_probability(judges_probability_matrices, nb_questions_per_trial)
-print(f"Majority Win Probability matrices: {judges_majority_win_probability_matrices}")
 
 #--------------------------------------------------------------------------------------------------
 # MARKOV TRANSITION MATRIX
@@ -143,10 +143,12 @@ def compute_markov_transition_matrix(win):
     for r in range(n):
         for c in range(n):
             if r != c:
-                # NOTE: win[c,r]: transition probability is the probability of THEM (c) winning against us (r)
+                # NOTE: transition probability is the probability of THEM (c) winning against us (r) (win[c,r])
+                #       times probability of a trial between the two ( 1 / (n-1) )
                 markov[r, c] = win[c, r] / (n - 1)
 
     # Compute the diagonal elements
+    # probability of staying where we are
     for r in range(n):
         markov[r, r] = 1 - np.sum(markov[r, :])
 
@@ -157,7 +159,6 @@ def compute_judges_markov_matrices(judges_majority_win_probability_matrices):
 
 # compute markov transtion matrices
 judges_markov_matrices = compute_judges_markov_matrices(judges_majority_win_probability_matrices)
-print(f"Markov transition matrices: {judges_markov_matrices}")
 
 #--------------------------------------------------------------------------------------------------
 # MARKOV END PROBABILITIES
@@ -173,7 +174,7 @@ def apply_markov_chain(markov_matrix, nb_trials):
     # Matrix exponentiation for large numbers of trials
     prob_vector = prob_vector @ np.linalg.matrix_power(markov_matrix, nb_trials)
     
-    # Final renormalization to handle numerical instabilities
+    # Final renormalization to handle potential numerical instabilities
     prob_vector /= np.sum(prob_vector)
     return prob_vector
 
@@ -182,7 +183,6 @@ def compute_judges_end_proba(judges_markov_matrices, nb_trials):
 
 # compute markov transtion matrices
 judges_end_probas = compute_judges_end_proba(judges_markov_matrices, nb_trials)
-print(f"End probabilities: {judges_end_probas}")
 
 #--------------------------------------------------------------------------------------------------
 # AGREEMENT PROBABILITIES
@@ -194,21 +194,20 @@ def agreement_probability(prob_vector1, prob_vector2):
 
 def compute_alignment(models_dict):
     # Extract the human model's probability vector
-    human_prob_vector = models_dict.get('human')
+    human_prob_vector = models_dict.get(human_reference)
     
     # Initialize a dictionary to store the alignment results
     alignment_dict = {}
     
     # Compute the alignment for each model against the human model
     for model, prob_vector in models_dict.items():
-        if model != 'human':
+        if model != human_reference:
             alignment_dict[model] = agreement_probability(prob_vector, human_prob_vector)
     
     return alignment_dict
 
 # compute judges alignements
 judges_alignements = compute_alignment(judges_end_probas)
-print(f"Alignements: {judges_alignements}")
 
 #--------------------------------------------------------------------------------------------------
 # PLOTS
