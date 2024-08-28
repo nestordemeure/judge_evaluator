@@ -1,4 +1,5 @@
 import json
+import math
 import numpy as np
 import scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -111,19 +112,29 @@ def compute_majority_win_probability(win_probability:float, nb_questions_per_tri
     """
     Calculate the probability that the model wins on more than half of the nb_questions question,
     based on winning win_probability of the time in previous qustions.
+
+    :param win_probability: Estimated probability that the model wins on one question
+    :param nb_questions_per_trial: Number of question in a trial
+    :return: Probability that the model wins on more than half of the question.
+    """
+    # "Most of the time" means more than half the time
+    k = math.ceil(nb_questions_per_trial / 2)
     
-    Parameters:
-    win_probability (float): Estimated probability that the model wins on one question
-    nb_questions_per_trial (int): Number of question in a trial
+    # Calculate the cumulative probability
+    #cumulative_prob = 0.0
+    #for i in range(k, nb_questions_per_trial + 1):
+    #    # Calculate binomial coefficient
+    #    binomial_coeff = math.comb(nb_questions_per_trial, i) 
+    #    # Calculate probability for exactly i successes
+    #    prob = binomial_coeff * (win_probability ** i) * ((1 - win_probability) ** (nb_questions_per_trial - i))
+    #    # Add to cumulative probability
+    #    cumulative_prob += prob
     
-    Returns:
-    float: Probability that the model wins on more than half of the question.
-    """       
-    # Sum of binomial probabilities for winning more than nb_questions_per_trial/2 times:
-    # stats.binom.pmf(nb_wins, nb_questions_per_trial, win_probability) gives us the probability of winning exactly nb_wins times
-    # We sum the binomial probabilities from floor(nb_questions_per_trial/2) + 1 to nb_questions_per_trial
-    probability = sum(stats.binom.pmf(nb_wins, nb_questions_per_trial, win_probability) for nb_wins in range(nb_questions_per_trial // 2 + 1, nb_questions_per_trial + 1))
-    return probability
+    # Calculate the cumulative probability using scipy.stats.binom.sf
+    # sf gives P(X >= k), which is what we want
+    cumulative_prob = stats.binom.sf(k - 1, nb_questions_per_trial, win_probability)
+
+    return cumulative_prob
 
 def compute_judges_majority_win_probability(judges_probability_matrices, nb_questions):
     vectorized_compute_majority_win_probability = np.vectorize(compute_majority_win_probability)
