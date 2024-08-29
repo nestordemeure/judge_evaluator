@@ -97,13 +97,20 @@ def compute_win_probability(contestants_index, contests):
             win_matrix[second_idx, first_idx] += 1
 
     # Calculate the win probability matrix
-    return np.divide(win_matrix, match_matrix, out=np.zeros_like(win_matrix), where=match_matrix!=0)
+    prob_matrix = np.divide(win_matrix, match_matrix, out=np.zeros_like(win_matrix), where=match_matrix!=0)
+    return match_matrix, prob_matrix
 
 def compute_judges_win_probability(contestants_index, all_contests:Dict[str,Dict]):
-    return {judge: compute_win_probability(contestants_index, contests) for (judge,contests) in all_contests.items()}
+    judges_nbmatch_matrices = dict()
+    judges_probability_matrices = dict()
+    for (judge,contests) in all_contests.items():
+        match_matrix, prob_matrix = compute_win_probability(contestants_index, contests)
+        judges_nbmatch_matrices[judge] = match_matrix
+        judges_probability_matrices[judge] = prob_matrix
+    return judges_nbmatch_matrices, judges_probability_matrices
 
 # compute win probabilities
-judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data)
+judges_nbmatch_matrices, judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data)
 
 #--------------------------------------------------------------------------------------------------
 # COMPUTE MAJORITY WIN PROBABILITY
@@ -223,6 +230,37 @@ judges_alignements = compute_alignment(judges_end_probas)
 #--------------------------------------------------------------------------------------------------
 # PLOTS
 
+def plot_integermatrix(judges_dict, contestants_index, output_folder):
+    """
+    Generates and saves a heatmap for each judge's probability matrix.
+    
+    Parameters:
+    judges_dict (dict): A dictionary where keys are judge names (str) and values are numpy matrices (2D arrays of probabilities).
+    contestants_index (dict): A dictionary where keys are model names (str) and values are the index (int) corresponding to row/col in the matrix.
+    output_folder (Path): The path to the output folder where heatmaps should be saved.
+    """
+    # Convert the contestants_index dictionary to a list for ordering labels
+    index_to_label = {v: k for k, v in contestants_index.items()}
+    labels = [index_to_label[i] for i in range(len(index_to_label))]
+
+    # maximum value accross all matrices, to keep colors consistant
+    nb_max = max( np.max(matrix) for matrix in judges_dict.values() )
+
+    for judge, matrix in judges_dict.items():
+        plt.figure(figsize=(8, 8))
+
+        # Generate the heatmap with the transformed matrix for color scale but original values for annotation
+        sns.heatmap(matrix, annot=matrix, cmap='coolwarm', xticklabels=labels, yticklabels=labels, cbar=False, vmin=0, vmax=nb_max)
+        
+        # Add title and labels
+        plt.title(f'Number of Matches for Judge: {judge}')
+        
+        # Save the heatmap to the specified folder with the judge's name
+        plt.savefig(output_folder / f'{judge}.png')
+        
+        # Close the plot to free up memory
+        plt.close()
+
 def plot_heatmaps(judges_dict, contestants_index, output_folder):
     """
     Generates and saves a heatmap for each judge's probability matrix.
@@ -238,9 +276,6 @@ def plot_heatmaps(judges_dict, contestants_index, output_folder):
 
     for judge, matrix in judges_dict.items():
         plt.figure(figsize=(8, 8))
-        
-        # Generate the heatmap with color scale from 0 to 0.6
-        #sns.heatmap(matrix, annot=True, fmt=".2f", cmap='coolwarm', xticklabels=labels, yticklabels=labels, vmin=0, vmax=0.6)
         
         # Apply a logarithmic transformation for the color scale
         transformed_matrix = np.log1p(1000 * matrix)  # log1p is used to avoid log(0) by computing log(1 + matrix)
@@ -332,6 +367,7 @@ def plot_alignment(alignment_dict, output_file):
 # save plots to file
 print("Plotting results...")
 # matrices
+plot_integermatrix(judges_nbmatch_matrices, contestants_index, output_folder / 'pairwise nb matches')
 plot_heatmaps(judges_probability_matrices, contestants_index, output_folder / 'pairwise win proba')
 plot_heatmaps(judges_majority_win_probability_matrices, contestants_index, output_folder / 'pairwise trial win proba')
 plot_heatmaps(judges_markov_matrices, contestants_index, output_folder / 'markov transition matrices')
