@@ -1,6 +1,6 @@
 # Judge Evaluator
 
-Statistic to decidemon which LLM best emulates a human picking between chatbots.
+Statistic to decide on which LLM best emulates a human picking between chatbots.
 
 We observed that the naive approach of seing how often a judging model agrees with a human is noisy (there is little human data compared to all permutations of models and questions) and that it, as well as more clever variant (such as looking at the ELO scores given to the model) puts equal emphasis on all comparison / models while we only care about the judge's ability to pick the best model.
 

@@ -137,7 +137,6 @@ def compute_majority_win_probability(win_probability:float, nb_questions_per_tri
     return cumulative_prob
 
 def compute_judges_majority_win_probability(judges_probability_matrices, nb_questions):
-    vectorized_compute_majority_win_probability = np.vectorize(compute_majority_win_probability)
     return {judge: compute_majority_win_probability(win_probabilities_matrix, nb_questions) for (judge,win_probabilities_matrix) in judges_probability_matrices.items()}
 
 # compute majority win probabilities
@@ -154,9 +153,10 @@ def compute_markov_transition_matrix(win):
     for r in range(n):
         for c in range(n):
             if r != c:
-                # NOTE: transition probability is the probability of THEM (c) winning against us (r) (win[c,r])
+                # NOTE: transition probability is the probability of us (r) losing against them (c) (1 - win[r,c])
                 #       times probability of a trial between the two ( 1 / (n-1) )
-                markov[r, c] = win[c, r] / (n - 1)
+                proba_losing = 1.0 - win[r, c]
+                markov[r, c] = proba_losing / (n - 1)
 
     # Compute the diagonal elements
     # probability of staying where we are
