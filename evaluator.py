@@ -75,7 +75,11 @@ contestants_index = extract_contestants(contests_data)
 #--------------------------------------------------------------------------------------------------
 # COMPUTE WIN PROBABILITY
 
-def compute_win_probability(contestants_index, contests):
+def compute_win_probability(contestants_index, contests, laplacian_smoothing:int):
+    """
+    laplacian_smoothing is a stabilizing term, added to the number of match to deal with low samples
+    (0 would mean no smoothing)
+    """
     # Initialize a matrix for win counts and match counts
     num_contestants = len(contestants_index)
     win_matrix = np.zeros((num_contestants, num_contestants))
@@ -97,20 +101,20 @@ def compute_win_probability(contestants_index, contests):
             win_matrix[second_idx, first_idx] += 1
 
     # Calculate the win probability matrix
-    prob_matrix = np.divide(win_matrix, match_matrix, out=np.zeros_like(win_matrix), where=match_matrix!=0)
+    prob_matrix = np.divide(win_matrix, (match_matrix+laplacian_smoothing), out=np.zeros_like(win_matrix), where=match_matrix!=0)
     return match_matrix, prob_matrix
 
-def compute_judges_win_probability(contestants_index, all_contests:Dict[str,Dict]):
+def compute_judges_win_probability(contestants_index, all_contests:Dict[str,Dict], laplacian_smoothing:int=0):
     judges_nbmatch_matrices = dict()
     judges_probability_matrices = dict()
     for (judge,contests) in all_contests.items():
-        match_matrix, prob_matrix = compute_win_probability(contestants_index, contests)
+        match_matrix, prob_matrix = compute_win_probability(contestants_index, contests, laplacian_smoothing)
         judges_nbmatch_matrices[judge] = match_matrix
         judges_probability_matrices[judge] = prob_matrix
     return judges_nbmatch_matrices, judges_probability_matrices
 
 # compute win probabilities
-judges_nbmatch_matrices, judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data)
+judges_nbmatch_matrices, judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data, laplacian_smoothing=1)
 
 #--------------------------------------------------------------------------------------------------
 # COMPUTE MAJORITY WIN PROBABILITY
