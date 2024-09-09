@@ -10,7 +10,7 @@ from pathlib import Path
 
 # folder with the input jsons
 input_folder = Path("./data")
-human_reference = 'human_all'
+human_reference = 'human'
 
 # on how many questions are two models compared in a trial
 nb_questions_per_trial = 20
@@ -117,6 +117,64 @@ def compute_judges_win_probability(contestants_index, all_contests:Dict[str,Dict
 judges_nbmatch_matrices, judges_probability_matrices = compute_judges_win_probability(contestants_index, contests_data, laplacian_smoothing=1)
 
 #--------------------------------------------------------------------------------------------------
+# Bradley-Terry MODEL
+
+def compute_bradley_terry(match_matrix, probs_matrix, max_iter=100, tol=1e-4):
+    """
+    Computes the Bradley-Terry probabilities using the iterative method.
+
+    Parameters:
+    - match_matrix: A 2D numpy array where [i, j] contains the number of matches between model i and model j.
+    - probs_matrix: A 2D numpy array where [i, j] contains the probability that model i won against model j.
+    - max_iter: Maximum number of iterations for convergence.
+    - tol: Tolerance for convergence.
+
+    Returns:
+    - prop: A 2D numpy array where [i, j] contains the probability that model i wins against model j.
+    """
+    # Computes Bradley-Terry scores iteratively
+    n_models = match_matrix.shape[0]  # Number of models
+    ratings = np.ones(n_models)  # Initialize all ratings to 1
+    wins_matrix = probs_matrix * match_matrix
+    for iteration in range(max_iter):
+        # updates ratings
+        new_ratings = np.zeros_like(ratings)
+        for i in range(n_models):
+            numerator = np.sum(wins_matrix[i,:] * ratings / (ratings[i] + ratings))
+            denominator = np.sum(wins_matrix[:,i] / (ratings[i] + ratings))
+            new_ratings[i] = numerator / denominator
+
+        # Normalize ratings by their geometric mean
+        new_ratings /= stats.gmean(new_ratings + 1e-10)  # Avoid log(0) by adding a small value
+        # Check for convergence
+        if np.max(np.abs(new_ratings - ratings)) < tol:
+            break
+
+        ratings = new_ratings
+
+    # Compute the probabilities
+    prop = np.zeros_like(match_matrix, dtype=float)
+    for i in range(n_models):
+        for j in range(n_models):
+            if i != j:
+                prop[i, j] = ratings[i] / (ratings[i] + ratings[j])
+    return prop
+
+def compute_judges_bradley_terry(judges_match_matrices, judges_prob_matrices, max_iter=100, tol=1e-4):
+    result = dict()
+    for judge, match_matrix in judges_match_matrices.items():
+        probs_matrix = judges_prob_matrices[judge]
+        bt_matrix = compute_bradley_terry(match_matrix, probs_matrix, max_iter, tol)
+        result[judge] = bt_matrix
+    return result
+
+# uses bradley terry to smooth probabilities
+# on ALL models
+# judges_probability_matrices = compute_judges_bradley_terry(judges_nbmatch_matrices, judges_probability_matrices)
+# on the human ONLY
+# judges_probability_matrices[human_reference] = compute_bradley_terry(judges_nbmatch_matrices[human_reference], judges_probability_matrices[human_reference])
+
+#--------------------------------------------------------------------------------------------------
 # COMPUTE MAJORITY WIN PROBABILITY
 
 def compute_majority_win_probability(win_probability:float, nb_questions_per_trial:int) -> float:
@@ -216,7 +274,10 @@ def agreement_probability(prob_vector1, prob_vector2):
 
 def compute_alignment(models_dict):
     # Extract the human model's probability vector
-    human_prob_vector = models_dict.get(human_reference)
+    if human_reference in models_dict:
+        human_prob_vector = models_dict.get(human_reference)
+    else:
+        raise RuntimeError(f"There is no '{human_reference}' in our data.")
     
     # Initialize a dictionary to store the alignment results
     alignment_dict = {}
@@ -243,6 +304,8 @@ def plot_integermatrix(judges_dict, contestants_index, output_folder):
     contestants_index (dict): A dictionary where keys are model names (str) and values are the index (int) corresponding to row/col in the matrix.
     output_folder (Path): The path to the output folder where heatmaps should be saved.
     """
+    # ensures the folder exists
+    output_folder.mkdir(exist_ok=True)
     # Convert the contestants_index dictionary to a list for ordering labels
     index_to_label = {v: k for k, v in contestants_index.items()}
     labels = [index_to_label[i] for i in range(len(index_to_label))]
@@ -274,6 +337,8 @@ def plot_heatmaps(judges_dict, contestants_index, output_folder):
     contestants_index (dict): A dictionary where keys are model names (str) and values are the index (int) corresponding to row/col in the matrix.
     output_folder (Path): The path to the output folder where heatmaps should be saved.
     """
+    # ensures the folder exists
+    output_folder.mkdir(exist_ok=True)
     # Convert the contestants_index dictionary to a list for ordering labels
     index_to_label = {v: k for k, v in contestants_index.items()}
     labels = [index_to_label[i] for i in range(len(index_to_label))]
@@ -298,6 +363,8 @@ def plot_heatmaps(judges_dict, contestants_index, output_folder):
         plt.close()
 
 def plot_judges_probabilities(judges_end_probas, contestants_index, output_dir):
+    # ensures the folder exists
+    output_dir.mkdir(exist_ok=True)
     # Inverse the contestants_index dictionary to map indices to chatbot names
     index_to_chatbot = {v: k for k, v in contestants_index.items()}
     
@@ -324,6 +391,8 @@ def plot_judges_probabilities(judges_end_probas, contestants_index, output_dir):
         plt.close()
 
 def plot_pca(judges_end_probas, output_folder):
+    # ensures the folder exists
+    output_folder.mkdir(exist_ok=True)
     # Convert dictionary values to a 2D matrix
     prob_matrix = np.array(list(judges_end_probas.values()))
     names = list(judges_end_probas.keys())
