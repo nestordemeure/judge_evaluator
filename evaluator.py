@@ -293,6 +293,55 @@ def compute_alignment(models_dict):
 judges_alignements = compute_alignment(judges_end_probas)
 
 #--------------------------------------------------------------------------------------------------
+# AGREEMENT PROBABILITIES
+
+def weighted_error(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
+    """
+    pairwise win proba error, weighted by the probability of each pairing
+    
+    The idea is to look at the probability of any pairing of chatbot: proba that a model is the current best * (equiprobable) proba that it faces another model
+    Then, sum the error on each pairwise probility (human vs current judge) weighted by the above proba of that pairing.
+
+    This lets us consider the error we make at the pairwise level, but not give undue attention to unlikely pairs of bad models.
+    The end result is garanteed to be in [0;1]
+
+    Note: we could try and go one step further, replacing the equiprobable proba with the win proba of the other model
+    """
+    nb_chatbots = len(human_winprob_vector)
+    # compute L1 error of pairwise majority win proba
+    l1_error = np.abs(human_majwin_mat - judge_majwin_mat)
+    np.fill_diagonal(l1_error, 0.0)
+    # average it into one column
+    # computing the average error associated with each chatbot
+    # weighted by the probability of each encounter (equiprobable)
+    error_per_chatbot = np.sum(l1_error, axis=1) / (nb_chatbots-1)
+    # reduce it into a single number
+    # weighting the errors by the probability of a chatbot being the current best
+    error = np.dot(human_winprob_vector, error_per_chatbot)
+    return error
+
+def compute_alignment2(winproba_dict, majoritywin_dict):
+    # Extract the human model's probability vector
+    if (human_reference in winproba_dict) and (human_reference in majoritywin_dict):
+        human_winprob_vector = winproba_dict.get(human_reference)
+        human_majwin_mat = majoritywin_dict.get(human_reference)
+    else:
+        raise RuntimeError(f"There is no '{human_reference}' in our data.")
+    
+    # Initialize a dictionary to store the alignment results
+    alignment_dict = {}
+    
+    # Compute the alignment for each model against the human model
+    for model, judge_majwin_mat in majoritywin_dict.items():
+        if model != human_reference:
+            alignment_dict[model] = weighted_error(human_winprob_vector, human_majwin_mat, judge_majwin_mat)
+    
+    return alignment_dict
+
+# compute judges alignements
+judges_alignements2 = compute_alignment2(judges_end_probas, judges_majority_win_probability_matrices)
+
+#--------------------------------------------------------------------------------------------------
 # PLOTS
 
 def plot_integermatrix(judges_dict, contestants_index, output_folder):
@@ -444,7 +493,8 @@ plot_integermatrix(judges_nbmatch_matrices, contestants_index, output_folder / '
 plot_heatmaps(judges_probability_matrices, contestants_index, output_folder / 'pairwise win proba')
 plot_heatmaps(judges_majority_win_probability_matrices, contestants_index, output_folder / 'pairwise trial win proba')
 plot_heatmaps(judges_markov_matrices, contestants_index, output_folder / 'markov transition matrices')
-# winner distrinbutions
+# winner distributions
 plot_judges_probabilities(judges_end_probas, contestants_index, output_folder / 'win distribution')
 plot_alignment(judges_alignements, alignement_plot_file)
+plot_alignment(judges_alignements2, output_folder / "judges_alignment_weightedpairwise.png")
 plot_pca(judges_end_probas, output_folder)
