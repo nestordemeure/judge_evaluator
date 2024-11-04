@@ -295,7 +295,7 @@ judges_alignements = compute_alignment(judges_end_probas)
 #--------------------------------------------------------------------------------------------------
 # AGREEMENT PROBABILITIES
 
-def weighted_error(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
+def weighted_error_alignement(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
     """
     pairwise win proba error, weighted by the probability of each pairing
     
@@ -318,7 +318,7 @@ def weighted_error(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
     # reduce it into a single number
     # weighting the errors by the probability of a chatbot being the current best
     error = np.dot(human_winprob_vector, error_per_chatbot)
-    return error
+    return 1 - error
 
 def compute_alignment2(winproba_dict, majoritywin_dict):
     # Extract the human model's probability vector
@@ -334,7 +334,7 @@ def compute_alignment2(winproba_dict, majoritywin_dict):
     # Compute the alignment for each model against the human model
     for model, judge_majwin_mat in majoritywin_dict.items():
         if model != human_reference:
-            alignment_dict[model] = weighted_error(human_winprob_vector, human_majwin_mat, judge_majwin_mat)
+            alignment_dict[model] = weighted_error_alignement(human_winprob_vector, human_majwin_mat, judge_majwin_mat)
     
     return alignment_dict
 
