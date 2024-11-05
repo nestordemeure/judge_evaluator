@@ -9,7 +9,7 @@ from typing import Dict
 from pathlib import Path
 
 # folder with the input jsons
-input_folder = Path("./data")
+input_folder = Path("./data/nersc")
 human_reference = 'human'
 
 # on how many questions are two models compared in a trial
@@ -20,7 +20,7 @@ nb_questions_per_trial = 20
 nb_trials = 10
 
 # output files
-output_folder = Path("./outputs")
+output_folder = Path("./outputs/nersc")
 alignement_plot_file = output_folder / "judges_alignment.png"
 
 #--------------------------------------------------------------------------------------------------
@@ -342,6 +342,99 @@ def compute_alignment2(winproba_dict, majoritywin_dict):
 judges_alignements2 = compute_alignment2(judges_end_probas, judges_majority_win_probability_matrices)
 
 #--------------------------------------------------------------------------------------------------
+# AGREEMENT PROBABILITIES
+
+def weighted_error_alignement2(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
+    """
+    compute the proba of the judge and human going the same direction
+    over all pairs
+    then weight it by the likelyhood of those contests
+    """
+    nb_chatbots = len(human_winprob_vector)
+    # proba of both judge and human saying win, or both saying lose
+    proba_agree = (human_majwin_mat * judge_majwin_mat) + ((1.0 - human_majwin_mat) * (1.0 - judge_majwin_mat))
+    np.fill_diagonal(proba_agree, 0.0)
+    # average it into one column
+    # computing the average error associated with each chatbot
+    # weighted by the probability of each encounter (equiprobable)
+    proba_per_chatbot = np.sum(proba_agree, axis=1) / (nb_chatbots-1)
+    # reduce it into a single number
+    # weighting the errors by the probability of a chatbot being the current best
+    proba = np.dot(human_winprob_vector, proba_per_chatbot)
+    return proba
+
+def compute_alignment3(winproba_dict, majoritywin_dict):
+    # Extract the human model's probability vector
+    if (human_reference in winproba_dict) and (human_reference in majoritywin_dict):
+        human_winprob_vector = winproba_dict.get(human_reference)
+        human_majwin_mat = majoritywin_dict.get(human_reference)
+    else:
+        raise RuntimeError(f"There is no '{human_reference}' in our data.")
+    
+    # Initialize a dictionary to store the alignment results
+    alignment_dict = {}
+    
+    # Compute the alignment for each model against the human model
+    for model, judge_majwin_mat in majoritywin_dict.items():
+        if model != human_reference:
+            alignment_dict[model] = weighted_error_alignement2(human_winprob_vector, human_majwin_mat, judge_majwin_mat)
+    
+    return alignment_dict
+
+# compute judges alignements
+judges_alignements3 = compute_alignment3(judges_end_probas, judges_majority_win_probability_matrices)
+
+#--------------------------------------------------------------------------------------------------
+# AGREEMENT PROBABILITIES
+
+def weighted_error_alignement4(human_winprob_vector, human_majwin_mat, judge_majwin_mat):
+    """
+    compute the proba of the judge and human going the same direction
+    over all pairs
+    then weight it by the likelyhood of those contests
+    """
+    nb_chatbots = len(human_winprob_vector)
+    # proba of both judge and human saying win, or both saying lose
+    proba_agree = (human_majwin_mat * judge_majwin_mat) + ((1.0 - human_majwin_mat) * (1.0 - judge_majwin_mat))
+    np.fill_diagonal(proba_agree, 0.0)
+    # difficulty of a given pair
+    difficulty = 4.0 * human_majwin_mat * (1.0 - human_majwin_mat)
+    np.fill_diagonal(difficulty, 0.0)
+    difficulty /= (np.sum(difficulty) / (nb_chatbots*(nb_chatbots-1)) )
+    # weighting proba agree
+    proba = proba_agree * difficulty
+    # average it into one column
+    # computing the average error associated with each chatbot
+    # weighted by the probability of each encounter (equiprobable)
+    proba_per_chatbot = np.sum(proba, axis=1) / (nb_chatbots-1)
+    # reduce it into a single number
+    # weighting the errors by the probability of a chatbot being the current best
+    proba = np.dot(human_winprob_vector, proba_per_chatbot)
+    return proba
+
+def compute_alignment4(winproba_dict, majoritywin_dict):
+    # Extract the human model's probability vector
+    if (human_reference in winproba_dict) and (human_reference in majoritywin_dict):
+        human_winprob_vector = winproba_dict.get(human_reference)
+        human_majwin_mat = majoritywin_dict.get(human_reference)
+    else:
+        raise RuntimeError(f"There is no '{human_reference}' in our data.")
+    
+    # Initialize a dictionary to store the alignment results
+    alignment_dict = {}
+    
+    # Compute the alignment for each model against the human model
+    for model, judge_majwin_mat in majoritywin_dict.items():
+        if model != human_reference:
+            alignment_dict[model] = weighted_error_alignement4(human_winprob_vector, human_majwin_mat, judge_majwin_mat)
+    
+    return alignment_dict
+
+# compute judges alignements
+judges_alignements4 = compute_alignment4(judges_end_probas, judges_majority_win_probability_matrices)
+
+
+#--------------------------------------------------------------------------------------------------
 # PLOTS
 
 def plot_integermatrix(judges_dict, contestants_index, output_folder):
@@ -496,5 +589,7 @@ plot_heatmaps(judges_markov_matrices, contestants_index, output_folder / 'markov
 # winner distributions
 plot_judges_probabilities(judges_end_probas, contestants_index, output_folder / 'win distribution')
 plot_alignment(judges_alignements, alignement_plot_file)
-plot_alignment(judges_alignements2, output_folder / "judges_alignment_weightedpairwise.png")
+plot_alignment(judges_alignements2, output_folder / "judges_alignment_weightedpairwiseerror.png")
+plot_alignment(judges_alignements3, output_folder / "judges_alignment_weightedpairwiseproba.png")
+plot_alignment(judges_alignements4, output_folder / "judges_alignment_difficultyweightedpairwiseproba.png")
 plot_pca(judges_end_probas, output_folder)
