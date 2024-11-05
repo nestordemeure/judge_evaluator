@@ -212,10 +212,34 @@ def plot_alignment(alignment_dict, output_file:Path):
     plt.savefig(output_file)
     plt.close()
 
+def plot_variance(alignment_dict, output_file:Path):
+    # Sort the alignment dictionary by names
+    sorted_items = sorted(alignment_dict.items(), key=lambda item: item[0])
+    
+    # Unpack the sorted items into models and alignment scores
+    models, alignment_scores = zip(*sorted_items)
+
+    # standardize number
+    alignment_scores = (alignment_scores - np.mean(alignment_scores)) / np.std(alignment_scores)
+
+    plt.figure(figsize=(12, 8))
+    plt.bar(models, alignment_scores, color='skyblue')
+    plt.xlabel('Models')
+    plt.ylabel(f'Probability of agreeing with Human after {nb_trials} trials of {nb_questions_per_trial} questions')
+    plt.title('Variance of Model Alignment with Human')
+    plt.ylim(-2.5, 2.5)
+    
+    # Tilt the x-axis labels
+    plt.xticks(rotation=45, ha='right')
+    
+    # Save the plot to a file
+    plt.savefig(output_file)
+    plt.close()
+
 #--------------------------------------------------------------------------------------------------
 # GROUP PROCESSING
 
-def process_group(input_folder, output_file, alignement_function):
+def process_group(input_folder, output_folder, alignement_function):
     """
     Computes the alignement score.
     """
@@ -228,7 +252,8 @@ def process_group(input_folder, output_file, alignement_function):
     judges_end_probas = compute_judges_end_proba(judges_markov_matrices, nb_trials)
     judges_alignements = compute_alignment(judges_end_probas, judges_majority_win_probability_matrices, alignement_function)
     # plots the result
-    plot_alignment(judges_alignements, output_file)
+    plot_alignment(judges_alignements, output_folder / f"alignement_{input_folder.name}.png")
+    plot_variance(judges_alignements, output_folder / f"variance_{input_folder.name}.png")
 
 def process_groups(input_folder: Path, output_folder: Path, alignement_function):
     """
@@ -244,7 +269,7 @@ def process_groups(input_folder: Path, output_folder: Path, alignement_function)
     # Loop through each subfolder in the input_folder
     for group_input_folder in input_folder.iterdir():
         if group_input_folder.is_dir():  # Ensure it's a directory
-            process_group(group_input_folder, output_folder / f"alignement_{group_input_folder.name}.png", alignement_function)
+            process_group(group_input_folder, output_folder, alignement_function)
 
 #--------------------------------------------------------------------------------------------------
 # ALIGNEMENT FUNCTIONS
