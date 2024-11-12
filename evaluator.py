@@ -97,8 +97,11 @@ def compute_win_probability(contestants_index, contests, laplacian_smoothing:int
         # Increment the win count
         if match['winner'] == match['first']:
             win_matrix[first_idx, second_idx] += 1
-        else:
+        elif match['winner'] == match['second']:
             win_matrix[second_idx, first_idx] += 1
+        else:
+            win_matrix[first_idx, second_idx] += 0.5
+            win_matrix[second_idx, first_idx] += 0.5
 
     # Calculate the win probability matrix
     prob_matrix = np.divide(win_matrix, (match_matrix+laplacian_smoothing), out=np.zeros_like(win_matrix), where=match_matrix!=0)

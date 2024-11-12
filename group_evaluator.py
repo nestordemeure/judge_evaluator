@@ -82,8 +82,11 @@ def compute_win_probability(contestants_index, contests, laplacian_smoothing:int
         # Increment the win count
         if match['winner'] == match['first']:
             win_matrix[first_idx, second_idx] += 1
-        else:
+        elif match['winner'] == match['second']:
             win_matrix[second_idx, first_idx] += 1
+        else:
+            win_matrix[first_idx, second_idx] += 0.5
+            win_matrix[second_idx, first_idx] += 0.5
 
     # Calculate the win probability matrix
     prob_matrix = np.divide(win_matrix, (match_matrix+laplacian_smoothing), out=np.zeros_like(win_matrix), where=match_matrix!=0)
@@ -350,6 +353,33 @@ def alignement(human_winprob_vector, human_majwin_mat, judge_winprob_vector, jud
     proba = np.dot(human_winprob_vector, proba_per_chatbot)
     return proba
 
+def alignementdiff(human_winprob_vector, human_majwin_mat, judge_winprob_vector, judge_majwin_mat):
+    """
+    compute the proba of the judge and human going the same direction
+    over all pairs
+    then weight it by the likelyhood of those contests
+    """
+    nb_chatbots = len(human_winprob_vector)
+    # proba of both judge and human saying win, or both saying lose
+    proba_agree = (human_majwin_mat * judge_majwin_mat) + ((1.0 - human_majwin_mat) * (1.0 - judge_majwin_mat))
+    np.fill_diagonal(proba_agree, 0.0)
+    # difficulty of a given pair
+    difficulty = 4.0 * human_majwin_mat * (1.0 - human_majwin_mat)
+    np.fill_diagonal(difficulty, 0.0)
+    # weighting proba agree
+    # a*d + 0.5*(a-1)*d + 0.5*(d-1)*a
+    # success on a hard one is great success
+    # fail on an easy one is catastrophic fail
+    proba = 0.5 + ((proba_agree * difficulty) - (1.0-proba_agree)*(1.0-difficulty)) / 2.0
+    # average it into one column
+    # computing the average error associated with each chatbot
+    # weighted by the probability of each encounter (equiprobable)
+    proba_per_chatbot = np.sum(proba, axis=1) / (nb_chatbots-1)
+    # reduce it into a single number
+    # weighting the errors by the probability of a chatbot being the current best
+    proba = np.dot(human_winprob_vector, proba_per_chatbot)
+    return proba
+
 #--------------------------------------------------------------------------------------------------
 # MAIN
 
@@ -359,4 +389,5 @@ process_groups(input_folder, output_folder / 'weightedpairwiseproba', weightedpa
 process_groups(input_folder, output_folder / 'weightedpairwiseproba', weightedpairwiseproba)
 process_groups(input_folder, output_folder / 'difficultyweightedpairwiseproba', difficultyweightedpairwiseproba)
 process_groups(input_folder, output_folder / 'alignement', alignement)
+process_groups(input_folder, output_folder / 'alignementdiff', alignementdiff)
 print("Done.")
